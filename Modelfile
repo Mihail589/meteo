@@ -1,0 +1,4 @@
+FROM deepseek-coder:latest
+
+# Принудительно активируем системный шаблон для вызова инструментов
+TEMPLATE """{{- if .System }}{{ .System }}{{- end }}{{- if .Tools }}You are a helpful assistant with tool calling capabilities.{{- end }}{{- range .Messages }}{{- if eq .Role "user" }}{{ .Content }}{{- else if eq .Role "assistant" }}{{ .Content }}{{- end }}{{- end }}"""

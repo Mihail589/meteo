@@ -1,0 +1,6 @@
+{
+    "python-envs.defaultEnvManager": "ms-python.python:system",
+    "chat.tools.terminal.autoApprove": {
+        "C:/Users/Mihail/AppData/Local/Programs/Python/Python312/python.exe": true
+    }
+}
