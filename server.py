@@ -9,8 +9,8 @@ from datetime import datetime
 app = Flask(__name__)
 CORS(app)
 db = sql("192.168.0.13", password="123", dbname="meteo")
-#printer = Serial("/dev/ttyS0", 9600)
-#hc = Serial("/dev/ttyUSB0", 9600)
+printer = Serial("/dev/ttyS0", 9600)
+hc = Serial("/dev/ttyUSB0", 9600)
 
 @app.route("/api/update", methods = ["GET"])
 def api_update():
