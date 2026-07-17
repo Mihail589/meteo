@@ -1,8 +1,5 @@
 flask
-transformers
 psycopg2-binary
 datetime
 vk-api
-transformers
 pyserial
-torch

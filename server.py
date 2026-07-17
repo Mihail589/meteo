@@ -1,5 +1,5 @@
 from flask import Flask, jsonify, request, render_template
-from utilitis import sql, smerti, gpt
+from utilitis import sql, smerti
 import json
 from time import sleep as s
 from sql import sql 
@@ -18,9 +18,9 @@ def api_update():
     printer.write(f"ID: {data[0]}\nAir temp: {data[1]}\nAir hum: {data[2]}\nPress: {data[3]}\n".encode())
     s(1)
     printer.write(f"Soil Temp: {data[4]}\nSoil Hum: {data[5]}\nIs rain: {data[6]}\nLight: {data[7]}\n".encode())
-    ai = gpt.gpt(f"Air temp: {data[1]} Air hum: {data[2]} Press: {data[3]} Soil Temp: {data[4]} Soil Hum: {data[5]} Is rain: {data[6]} Light: {data[7]}")
-    printer.write(ai.encode())
-    datatemp = {"id":int(data[0]), "atemp": int(data[1]), "ahum": int(data[2]), "press": int(data[3]), "stemp": int(data[4]), "shum": int(data[5]), "rain": bool(data[6]), "light": int(data[7]), "ai": ai, "status": "online"}
+    #ai = gpt.gpt(f"Air temp: {data[1]} Air hum: {data[2]} Press: {data[3]} Soil Temp: {data[4]} Soil Hum: {data[5]} Is rain: {data[6]} Light: {data[7]}")
+    #printer.write(ai.encode())
+    datatemp = {"id":int(data[0]), "atemp": int(data[1]), "ahum": int(data[2]), "press": int(data[3]), "stemp": int(data[4]), "shum": int(data[5]), "rain": bool(data[6]), "light": int(data[7]), "ai": "Недоступно", "status": "online"}
     invite(datatemp, 590615826)
     return jsonify(datatemp)
 
