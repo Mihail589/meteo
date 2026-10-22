@@ -1,0 +1,1055 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Мониторинг полей — Заря</title>
+<link rel="shortcut icon" href="{{ url_for('static', filename='favicon.ico') }}">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#1b2318;
+    --canvas:#f3f0e6;
+    --canvas-2:#eae5d5;
+    --moss:#3f5734;
+    --moss-2:#5a7a4c;
+    --sage:#8fa87c;
+    --wheat:#c69a4b;
+    --clay:#a13d2a;
+    --paper:#fbf9f2;
+    --line:#cfc7ac;
+    --status-online:#4c7a41;
+    --status-offline:#948d78;
+    --status-error:#a13d2a;
+  }
+  *{box-sizing:border-box;}
+  html,body{height:100%;margin:0;}
+  body{
+    font-family:'IBM Plex Sans', sans-serif;
+    background:var(--canvas);
+    color:var(--ink);
+    display:flex;
+    flex-direction:column;
+    overflow:hidden;
+  }
+  .topbar{
+    display:flex;
+    align-items:baseline;
+    gap:14px;
+    padding:14px 22px 12px;
+    border-bottom:2px solid var(--ink);
+    background:var(--paper);
+    flex-shrink:0;
+  }
+  .topbar h1{
+    font-family:'Fraunces', serif;
+    font-weight:700;
+    font-size:22px;
+    margin:0;
+    letter-spacing:0.2px;
+  }
+  .topbar .sub{
+    font-size:12px;
+    color:var(--moss-2);
+    font-family:'IBM Plex Mono', monospace;
+    text-transform:uppercase;
+    letter-spacing:0.08em;
+  }
+  .topbar .meta{
+    margin-left:auto;
+    font-family:'IBM Plex Mono', monospace;
+    font-size:11.5px;
+    color:#6b6252;
+    text-align:right;
+    line-height:1.5;
+  }
+  .app{
+    flex:1;
+    display:grid;
+    grid-template-columns:230px 1fr 320px;
+    min-height:0;
+  }
+  /* ---------- LEFT: field ledger ---------- */
+  .ledger{
+    background:var(--paper);
+    border-right:2px solid var(--ink);
+    overflow-y:auto;
+    padding:14px 0 20px;
+  }
+  .ledger-title{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:10.5px;
+    text-transform:uppercase;
+    letter-spacing:0.1em;
+    color:#8a8168;
+    padding:0 16px 10px;
+    border-bottom:1px dashed var(--line);
+    margin-bottom:6px;
+  }
+  .field-btn{
+    width:100%;
+    text-align:left;
+    background:none;
+    border:none;
+    border-left:4px solid transparent;
+    padding:11px 14px 11px 12px;
+    cursor:pointer;
+    display:flex;
+    flex-direction:column;
+    gap:3px;
+    font-family:inherit;
+    transition:background .12s ease;
+  }
+  .field-btn:hover{background:var(--canvas-2);}
+  .field-btn.active{
+    background:var(--canvas-2);
+    border-left-color:var(--moss);
+  }
+  .field-btn .row1{
+    display:flex;
+    align-items:center;
+    gap:7px;
+  }
+  .dot{
+    width:8px;height:8px;border-radius:50%;flex-shrink:0;
+    box-shadow:0 0 0 2px rgba(0,0,0,0.05);
+  }
+  .dot.online{background:var(--status-online);}
+  .dot.offline{background:var(--status-offline);}
+  .dot.error{background:var(--status-error);}
+  .field-btn .name{font-weight:600;font-size:13.5px;}
+  .field-btn .crop{
+    font-size:11px;
+    color:#756c56;
+    font-family:'IBM Plex Mono', monospace;
+    padding-left:15px;
+  }
+  /* ---------- CENTER: map ---------- */
+  .map-wrap{position:relative;min-width:0;}
+  #map{width:100%;height:100%;background:#e6e2d3;}
+  .leaflet-popup-content-wrapper{
+    font-family:'IBM Plex Sans', sans-serif;
+    border-radius:2px;
+  }
+  .refresh-float{
+    position:absolute;
+    right:14px;
+    top:14px;
+    z-index:500;
+    background:var(--paper);
+    border:1.5px solid var(--ink);
+    border-radius:3px;
+    padding:9px 14px;
+    font-family:'IBM Plex Mono', monospace;
+    font-size:11.5px;
+    display:flex;
+    align-items:center;
+    gap:10px;
+    box-shadow:2px 2px 0 rgba(27,35,24,0.12);
+  }
+  .refresh-float button{
+    background:var(--moss);
+    color:var(--paper);
+    border:none;
+    border-radius:2px;
+    padding:6px 11px;
+    font-family:'IBM Plex Mono', monospace;
+    font-size:11px;
+    font-weight:600;
+    cursor:pointer;
+    letter-spacing:0.03em;
+  }
+  .refresh-float button:hover{background:var(--moss-2);}
+  .refresh-float button:disabled{opacity:0.55;cursor:default;}
+  .legend{
+    position:absolute;
+    left:14px;
+    bottom:14px;
+    z-index:500;
+    background:var(--paper);
+    border:1.5px solid var(--ink);
+    border-radius:3px;
+    padding:9px 13px;
+    font-family:'IBM Plex Mono', monospace;
+    font-size:11px;
+    box-shadow:2px 2px 0 rgba(27,35,24,0.12);
+    display:flex;
+    flex-direction:column;
+    gap:5px;
+  }
+  .legend .item{display:flex;align-items:center;gap:7px;}
+  /* ---------- RIGHT: field card ---------- */
+  .card-pane{
+    background:var(--paper);
+    border-left:2px solid var(--ink);
+    display:flex;
+    flex-direction:column;
+    min-height:0;
+  }
+  .card-toolbar{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    padding:14px 18px 12px;
+    border-bottom:1px dashed var(--line);
+    flex-shrink:0;
+  }
+  .card-toolbar .pane-title{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:10.5px;
+    text-transform:uppercase;
+    letter-spacing:0.1em;
+    color:#8a8168;
+  }
+  .add-btn{
+    background:var(--wheat);
+    color:var(--ink);
+    border:1.5px solid var(--ink);
+    border-radius:3px;
+    padding:6px 11px;
+    font-family:'IBM Plex Mono', monospace;
+    font-size:11.5px;
+    font-weight:600;
+    cursor:pointer;
+    box-shadow:2px 2px 0 rgba(27,35,24,0.12);
+    transition:transform .08s ease, box-shadow .08s ease;
+  }
+  .add-btn:hover{background:#d4ac63;}
+  .add-btn:active{transform:translate(2px,2px);box-shadow:none;}
+  .card-content{
+    flex:1;
+    overflow-y:auto;
+    padding:16px 18px 30px;
+  }
+  /* --- draw instructions & form --- */
+  .draw-box{
+    background:var(--canvas-2);
+    border:1.5px dashed var(--moss);
+    border-radius:4px;
+    padding:14px 14px 16px;
+    font-size:12.5px;
+    line-height:1.55;
+  }
+  .draw-box .draw-title{
+    font-family:'Fraunces', serif;
+    font-weight:600;
+    font-size:16px;
+    margin-bottom:8px;
+  }
+  .draw-box .pt-count{
+    font-family:'IBM Plex Mono', monospace;
+    font-weight:600;
+    color:var(--moss);
+  }
+  .form-actions{
+    display:flex;
+    gap:8px;
+    margin-top:14px;
+  }
+  .form-actions button{
+    flex:1;
+    border-radius:3px;
+    padding:8px 10px;
+    font-family:'IBM Plex Mono', monospace;
+    font-size:11.5px;
+    font-weight:600;
+    cursor:pointer;
+    border:1.5px solid var(--ink);
+  }
+  .btn-primary{background:var(--moss);color:var(--paper);}
+  .btn-primary:hover{background:var(--moss-2);}
+  .btn-primary:disabled{opacity:0.45;cursor:not-allowed;}
+  .btn-secondary{background:var(--paper);color:var(--ink);}
+  .delete-btn{
+    background:#f3ddd6;
+    color:var(--clay);
+    border-color:var(--clay) !important;
+  }
+  .delete-btn:hover{background:#eccabf;}
+  .btn-secondary:hover{background:var(--canvas-2);}
+  .field-form label{
+    display:block;
+    font-family:'IBM Plex Mono', monospace;
+    font-size:10.5px;
+    text-transform:uppercase;
+    letter-spacing:0.04em;
+    color:#8a8168;
+    margin:12px 0 5px;
+  }
+  .field-form label:first-child{margin-top:0;}
+  .field-form input[type=text],
+  .field-form input[type=number],
+  .field-form input[type=date],
+  .field-form select{
+    width:100%;
+    font-family:'IBM Plex Sans', sans-serif;
+    font-size:13px;
+    padding:7px 9px;
+    border:1.5px solid var(--line);
+    border-radius:3px;
+    background:var(--canvas);
+    color:var(--ink);
+  }
+  .field-form input:focus,
+  .field-form select:focus{
+    outline:none;
+    border-color:var(--moss);
+  }
+  .field-form .row2{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+  .field-form .hint{font-size:11px;color:#8a8168;margin-top:4px;}
+  .field-card{
+    background:var(--canvas);
+    border:1.5px solid var(--ink);
+    border-radius:4px;
+    padding:16px 16px 18px;
+    position:relative;
+  }
+  .field-card::before{
+    content:'';
+    position:absolute;
+    top:-1.5px;left:22px;
+    width:34px;height:8px;
+    background:var(--paper);
+    border:1.5px solid var(--ink);
+    border-top:none;
+    border-radius:0 0 5px 5px;
+  }
+  .card-head{
+    display:flex;
+    justify-content:space-between;
+    align-items:flex-start;
+    border-bottom:1px dashed var(--line);
+    padding-bottom:10px;
+    margin-bottom:12px;
+  }
+  .card-head h2{
+    font-family:'Fraunces', serif;
+    font-size:19px;
+    margin:0 0 3px;
+    font-weight:600;
+  }
+  .status-pill{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:10.5px;
+    text-transform:uppercase;
+    letter-spacing:0.06em;
+    padding:3px 8px;
+    border-radius:20px;
+    font-weight:600;
+    white-space:nowrap;
+  }
+  .status-pill.online{background:#e3ecdf;color:var(--status-online);}
+  .status-pill.offline{background:#e9e7dd;color:#726a56;}
+  .status-pill.error{background:#f3ddd6;color:var(--status-error);}
+  .kv-grid{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:8px 12px;
+    margin-bottom:14px;
+  }
+  .kv-grid .kv{font-size:12.5px;}
+  .kv .k{color:#7a7260;font-size:10.5px;text-transform:uppercase;font-family:'IBM Plex Mono', monospace;letter-spacing:0.04em;margin-bottom:2px;}
+  .kv .v{font-weight:600;}
+  .section-label{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:10.5px;
+    text-transform:uppercase;
+    letter-spacing:0.08em;
+    color:#8a8168;
+    margin:16px 0 8px;
+    display:flex;
+    align-items:center;
+    gap:8px;
+  }
+  .section-label::after{content:'';flex:1;border-top:1px dashed var(--line);}
+  .sensor-grid{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:7px;
+  }
+  .sensor{
+    background:var(--paper);
+    border:1px solid var(--line);
+    border-radius:3px;
+    padding:7px 9px;
+  }
+  .sensor .label{font-size:10.5px;color:#8a8168;}
+  .sensor .val{font-family:'IBM Plex Mono', monospace;font-weight:600;font-size:14px;color:var(--ink);}
+  .sensor .val span{font-size:10.5px;font-weight:400;color:#8a8168;}
+  .fert-list{list-style:none;margin:0;padding:0;font-size:12.5px;}
+  .fert-list li{
+    padding:6px 0;
+    border-bottom:1px dashed var(--line);
+    display:flex;
+    justify-content:space-between;
+    gap:10px;
+  }
+  .fert-list li:last-child{border-bottom:none;}
+  .fert-list .fname{font-weight:500;}
+  .fert-list .fdate{color:#8a8168;font-family:'IBM Plex Mono', monospace;font-size:11px;white-space:nowrap;}
+  .section-label-row{
+    display:flex;
+    align-items:center;
+    gap:8px;
+    margin:16px 0 8px;
+  }
+  .section-label-row .section-label{margin:0;flex:0 0 auto;}
+  .section-label-row .section-label::after{content:none;}
+  .section-label-row .spacer{flex:1;border-top:1px dashed var(--line);}
+  .mini-add-btn{
+    background:var(--canvas);
+    color:var(--moss);
+    border:1.5px solid var(--moss);
+    border-radius:20px;
+    padding:2px 9px;
+    font-family:'IBM Plex Mono', monospace;
+    font-size:10.5px;
+    font-weight:600;
+    cursor:pointer;
+    white-space:nowrap;
+    transition:background .1s ease;
+  }
+  .mini-add-btn:hover{background:var(--canvas-2);}
+  .fert-form{
+    background:var(--canvas-2);
+    border:1.5px dashed var(--moss);
+    border-radius:4px;
+    padding:12px 12px 14px;
+    margin-bottom:10px;
+  }
+  .fert-form label{
+    display:block;
+    font-family:'IBM Plex Mono', monospace;
+    font-size:10.5px;
+    text-transform:uppercase;
+    letter-spacing:0.04em;
+    color:#8a8168;
+    margin:8px 0 4px;
+  }
+  .fert-form label:first-child{margin-top:0;}
+  .fert-form input[type=text],
+  .fert-form input[type=date],
+  .fert-form select{
+    width:100%;
+    font-family:'IBM Plex Sans', sans-serif;
+    font-size:13px;
+    padding:6px 8px;
+    border:1.5px solid var(--line);
+    border-radius:3px;
+    background:var(--paper);
+    color:var(--ink);
+  }
+  .fert-form input:focus,
+  .fert-form select:focus{outline:none;border-color:var(--moss);}
+  .fert-form .row2{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+  .fert-form .form-actions{margin-top:10px;}
+  .ai-box{
+    background:#eef2e8;
+    border:1px solid var(--sage);
+    border-left:4px solid var(--moss);
+    border-radius:3px;
+    padding:11px 12px;
+    font-size:12.5px;
+    line-height:1.55;
+  }
+  .ai-box .ai-title{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:10.5px;
+    text-transform:uppercase;
+    letter-spacing:0.06em;
+    color:var(--moss);
+    font-weight:600;
+    margin-bottom:6px;
+  }
+  .ai-box ul{margin:6px 0 0;padding-left:16px;}
+  .ai-box li{margin-bottom:3px;}
+  .empty-state{
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    height:100%;
+    color:#8a8168;
+    font-family:'IBM Plex Mono', monospace;
+    font-size:12.5px;
+    text-align:center;
+    padding:20px;
+  }
+  ::-webkit-scrollbar{width:9px;}
+  ::-webkit-scrollbar-track{background:var(--paper);}
+  ::-webkit-scrollbar-thumb{background:var(--line);border-radius:5px;}
+  @media (max-width:900px){
+    .app{grid-template-columns:180px 1fr 260px;}
+  }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <h1>🌾 Заря</h1>
+  <div class="sub">Система мониторинга полей</div>
+  <div class="meta" id="clockMeta">— обновление каждые 3 часа —</div>
+</div>
+
+<div class="app">
+
+  <!-- LEFT: field list -->
+  <div class="ledger" id="ledger">
+    <div class="ledger-title">Поля хозяйства</div>
+    <div id="fieldButtons"></div>
+  </div>
+
+  <!-- CENTER: map -->
+  <div class="map-wrap">
+    <div id="map"></div>
+    <div class="refresh-float">
+      <span id="lastUpdateLabel">обновлено только что</span>
+      <button id="refreshBtn">Обновить сейчас</button>
+    </div>
+    <div class="legend">
+      <div class="item"><span class="dot online"></span> онлайн</div>
+      <div class="item"><span class="dot offline"></span> офлайн</div>
+      <div class="item"><span class="dot error"></span> ошибка</div>
+    </div>
+  </div>
+
+  <!-- RIGHT: field card -->
+  <div class="card-pane">
+    <div class="card-toolbar">
+      <span class="pane-title">Карточка поля</span>
+      <button class="add-btn" id="addFieldBtn">+ Добавить поле</button>
+    </div>
+    <div class="card-content" id="cardContent">
+      <div class="empty-state">Выберите поле слева<br>или отметьте станцию на карте</div>
+    </div>
+  </div>
+
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script>
+
+let FIELDS = [];
+
+const STATUS_LABEL = {online:'Онлайн', offline:'Офлайн', error:'Ошибка'};
+const STATUS_COLOR = {online:'#4c7a41', offline:'#948d78', error:'#a13d2a'};
+
+let selectedId = null;
+let lastUpdateMinutesAgo = 0;
+const markers = {};
+const polygons = {};
+
+// Загрузка полей с сервера
+async function loadFields() {
+
+    const response = await fetch("/api/fields");
+    FIELDS = await response.json();
+
+    const defaultSensors = {temp:'—', humidityAir:'—', pressure:'—', soilMoisture:'—', soilTemp:'—', light:'—', rain:'—'};
+    FIELDS = FIELDS.map(f => ({
+      status: 'online',
+      sensors: {...defaultSensors},
+      fertilizers: [],
+      ai: "Ждём данные от датчиков, чтобы нейросеть могла дать рекомендации",
+      ...f,
+    }));
+
+    FIELDS.forEach(addFieldToMap);
+    FIELDS.forEach(addFieldButton);
+
+    if (FIELDS.length) selectField(FIELDS[0].id);
+}
+
+/* ---------------- MAP ---------------- */
+
+const map = L.map('map', {zoomControl:true}).setView([45.072, 39.055], 12.4);
+
+const osmLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+  attribution: '&copy; OpenStreetMap',
+  maxZoom: 18
+});
+
+const satelliteLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+  attribution: 'Tiles &copy; Esri &mdash; Source: Esri, Maxar, Earthstar Geographics, and the GIS User Community',
+  maxZoom: 18
+});
+
+const labelsOverlay = L.tileLayer('https://{s}.basemaps.cartocdn.com/light_only_labels/{z}/{x}/{y}.png', {
+  attribution: '&copy; OpenStreetMap, &copy; CARTO',
+  subdomains: 'abcd',
+  maxZoom: 18,
+  opacity: 0.95
+});
+
+satelliteLayer.addTo(map);
+labelsOverlay.addTo(map);
+
+function addFieldToMap(f){
+  const poly = L.polygon(f.polygon, {
+    color: '#3f5734',
+    weight: 2,
+    fillColor: '#8fa87c',
+    fillOpacity: 0.18,
+    dashArray: '5,4'
+  }).addTo(map);
+  poly.on('click', () => selectField(f.id));
+  polygons[f.id] = poly;
+
+  const marker = L.circleMarker(f.center, {
+    radius: 9,
+    color: '#1b2318',
+    weight: 1.5,
+    fillColor: STATUS_COLOR[f.status],
+    fillOpacity: 1
+  }).addTo(map);
+  marker.bindTooltip(`${f.name}`, {direction:'top', offset:[0,-6]});
+  marker.on('click', () => selectField(f.id));
+  markers[f.id] = marker;
+}
+FIELDS.forEach(addFieldToMap);
+
+/* ---------------- LEFT LIST ---------------- */
+const listEl = document.getElementById('fieldButtons');
+function addFieldButton(f){
+  const btn = document.createElement('button');
+  btn.className = 'field-btn';
+  btn.id = 'btn-' + f.id;
+  btn.innerHTML = `
+    <div class="row1">
+      <span class="dot ${f.status}"></span>
+      <span class="name">${f.name}</span>
+    </div>
+    <div class="crop">${f.area} га</div>
+  `;
+  btn.addEventListener('click', () => selectField(f.id));
+  listEl.appendChild(btn);
+}
+FIELDS.forEach(addFieldButton);
+
+function deleteField(id){
+  const idx = FIELDS.findIndex(x => x.id === id);
+  if (idx === -1) return;
+  fetch(`/api/delete`, {
+    method: "DELETE",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ fieldId: id })
+  })
+  FIELDS.splice(idx, 1);
+
+  if (markers[id]) { map.removeLayer(markers[id]); delete markers[id]; }
+  if (polygons[id]) { map.removeLayer(polygons[id]); delete polygons[id]; }
+
+  const btn = document.getElementById('btn-' + id);
+  if (btn) btn.remove();
+
+  if (selectedId === id) {
+    selectedId = null;
+    if (FIELDS.length) {
+      selectField(FIELDS[0].id);
+    } else {
+      document.getElementById('cardContent').innerHTML =
+        `<div class="empty-state">Полей пока нет.<br>Нажмите «+ Добавить поле»</div>`;
+    }
+  }
+}
+
+/* ---------------- SELECT FIELD ---------------- */
+function selectField(id){
+  if (drawing) return;
+  const f = FIELDS.find(x => x.id === id);
+  if (!f) {
+    console.warn(`Field ${id} not found`);
+    return;
+  }
+  selectedId = id;
+
+  document.querySelectorAll('.field-btn').forEach(b => b.classList.remove('active'));
+  const btn = document.getElementById('btn-' + id);
+  if (btn) btn.classList.add('active');
+
+  Object.values(polygons).forEach(p => p.setStyle({weight:2, color:'#3f5734'}));
+  if (polygons[id]) polygons[id].setStyle({weight:3.5, color:'#c69a4b'});
+
+  if (Array.isArray(f.center)) {
+    map.flyTo(f.center, 14, {duration:0.6});
+  }
+  renderCard(f);
+}
+
+function renderCard(f){
+  const pane = document.getElementById('cardContent');
+  const s = f.sensors || {temp:'—', humidityAir:'—', pressure:'—', soilMoisture:'—', soilTemp:'—', light:'—', rain:'—'};
+  const fertilizers = Array.isArray(f.fertilizers) ? f.fertilizers : [];
+  const aiText = f.ai || "Ждём данные от датчиков, чтобы нейросеть могла дать рекомендации";
+  const plantedDate = new Date(f.planted || Date.now()).toLocaleDateString('ru-RU', {day:'2-digit', month:'long', year:'numeric'});
+  const fertHtml = fertilizers.length
+    ? fertilizers.map(x => `<li><span class="fname">${x.name}</span><span class="fdate">${x.date} ${x.time || ''}</span></li>`).join('')
+    : `<li><span class="fname" style="color:#8a8168;">Удобрения ещё не вносились</span></li>`;
+
+  pane.innerHTML = `
+    <div class="field-card">
+      <div class="card-head">
+        <div>
+          <h2>${f.name}</h2>
+        </div>
+        <span class="status-pill ${f.status}">${STATUS_LABEL[f.status]}</span>
+      </div>
+
+      <div class="kv-grid">
+        <div class="kv"><div class="k">Площадь</div><div class="v">${f.area} га</div></div>
+        <div class="kv"><div class="k">Посажено</div><div class="v">${plantedDate}</div></div>
+      </div>
+
+      <div class="section-label">Датчики</div>
+      <div class="sensor-grid">
+        <div class="sensor"><div class="label">Темп. воздуха</div><div class="val">${s.temp}<span> °C</span></div></div>
+        <div class="sensor"><div class="label">Влажн. воздуха</div><div class="val">${s.humidityAir}<span> %</span></div></div>
+        <div class="sensor"><div class="label">Давление</div><div class="val">${s.pressure}<span> гПа</span></div></div>
+        <div class="sensor"><div class="label">Влажн. почвы</div><div class="val">${s.soilMoisture}<span> %</span></div></div>
+        <div class="sensor"><div class="label">Темп. почвы</div><div class="val">${s.soilTemp}<span> °C</span></div></div>
+        <div class="sensor"><div class="label">Освещённость</div><div class="val">${s.light}</div></div>
+      </div>
+
+      <div class="section-label-row">
+        <div class="section-label">Удобрения</div>
+        <div class="spacer"></div>
+        <button class="mini-add-btn" id="addFertBtn">+ Внести удобрение</button>
+      </div>
+      <div id="fertFormWrap"></div>
+      <ul class="fert-list" id="fertList">
+        ${fertHtml}
+      </ul>
+
+      <div class="section-label">Рекомендации нейросети</div>
+      <div class="ai-box">
+        <div class="ai-title">🤖 Совет по полю</div>
+        <ul>
+          <li>${aiText}</li>
+        </ul>
+      </div>
+
+      <div class="form-actions" style="margin-top:18px;">
+        <button class="btn-secondary delete-btn" id="deleteFieldBtn">🗑 Удалить поле</button>
+      </div>
+    </div>
+  `;
+
+  document.getElementById('deleteFieldBtn').addEventListener('click', () => {
+    if (confirm(`Удалить «${f.name}»? Это действие нельзя отменить.`)) {
+      deleteField(f.id);
+    }
+  });
+
+  document.getElementById('addFertBtn').addEventListener('click', () => {
+    renderFertForm(f);
+  });
+}
+
+/* ---------------- ADD FERTILIZER ---------------- */
+const FERT_OPTIONS = [
+  'Аммиачная селитра',
+  'Карбамид (мочевина)',
+  'Диаммофоска (NPK)',
+  'Сульфат аммония',
+  'Калийная соль',
+  'Суперфосфат',
+  'Жидкое комплексное удобрение',
+  'Другое'
+];
+
+function renderFertForm(f){
+  const wrap = document.getElementById('fertFormWrap');
+  const addBtn = document.getElementById('addFertBtn');
+  if (addBtn) addBtn.disabled = true;
+  const today = new Date().toISOString().slice(0,10);
+
+  wrap.innerHTML = `
+    <div class="fert-form">
+      <label for="fertName">Удобрение</label>
+      <select id="fertName">
+        ${FERT_OPTIONS.map(o => `<option value="${o}">${o}</option>`).join('')}
+      </select>
+      <div class="row2">
+        <div>
+          <label for="fertAmount">Норма, кг/га</label>
+          <input type="text" id="fertAmount" placeholder="например, 120">
+        </div>
+        <div>
+          <label for="fertDate">Дата внесения</label>
+          <input type="date" id="fertDate" value="${today}">
+        </div>
+      </div>
+      <div class="form-actions">
+        <button class="btn-secondary" id="fertCancelBtn">Отмена</button>
+        <button class="btn-primary" id="fertSaveBtn">Сохранить</button>
+      </div>
+    </div>
+  `;
+
+  document.getElementById('fertCancelBtn').addEventListener('click', () => {
+    wrap.innerHTML = '';
+    if (addBtn) addBtn.disabled = false;
+  });
+
+  document.getElementById('fertSaveBtn').addEventListener('click', () => {
+    const name = document.getElementById('fertName').value;
+    const amount = document.getElementById('fertAmount').value.trim();
+    const date = document.getElementById('fertDate').value || today;
+    const label = name ? `${name} - ${amount} кг/га` : amount;
+    if (!Array.isArray(f.fertilizers)) f.fertilizers = [];
+    const now = new Date();
+    const time = now.toLocaleTimeString('ru-RU', {hour:'2-digit', minute:'2-digit', second:'2-digit'});
+    const entry = { name: label, date: new Date(date).toLocaleDateString('ru-RU', {day:'2-digit', month:'long', year:'numeric'}), time: time };
+    f.fertilizers.push(entry);
+    fetch("http://127.0.0.1:5000/api/fertilizer", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ fieldId: f.id, fertilizer: entry })
+    })
+    .then(response => response.json())
+    .catch(error => {
+      console.error("Ошибка при сохранении удобрения на сервер:", error);
+    });
+
+    wrap.innerHTML = '';
+    renderCard(f);
+  });
+}
+
+/* ---------------- REFRESH ---------------- */
+const refreshBtn = document.getElementById('refreshBtn');
+const lastUpdateLabel = document.getElementById('lastUpdateLabel');
+
+refreshBtn.addEventListener('click', () => {
+  refreshBtn.disabled = true;
+  refreshBtn.textContent = 'Запрос…';
+      update()
+    refreshBtn.disabled = false;
+    refreshBtn.textContent = 'Обновить сейчас';
+  
+})
+function update(){
+  const url = '/api/update';
+  const data = { message: 'Привет, сервер!' };
+
+  fetch(url, {
+  method: 'GET',
+  })
+.then(response => response.json())
+.then(result => {
+
+  FIELDS[FIELDS.findIndex(x => x.id === result.id)].sensors.humidityAir = result.ahum;
+  FIELDS[FIELDS.findIndex(x => x.id === result.id)].sensors.temp = result.atemp;
+  FIELDS[FIELDS.findIndex(x => x.id === result.id)].sensors.pressure = result.press;
+  FIELDS[FIELDS.findIndex(x => x.id === result.id)].sensors.soilMoisture = result.shum;
+  FIELDS[FIELDS.findIndex(x => x.id === result.id)].sensors.soilTemp = result.stemp;
+  FIELDS[FIELDS.findIndex(x => x.id === result.id)].sensors.light = result.light;
+  FIELDS[FIELDS.findIndex(x => x.id === result.id)].ai = result.ai;
+  FIELDS[FIELDS.findIndex(x => x.id === result.id)].status = result.status;
+  lastUpdateMinutesAgo = 0;
+  updateClock();
+})
+.catch(error => console.error('Ошибка:', error));
+location.reload();
+}
+function updateClock(){
+  lastUpdateLabel.textContent = lastUpdateMinutesAgo === 0
+    ? 'обновлено только что'
+    : `обновлено ${lastUpdateMinutesAgo} мин назад`;
+}
+setInterval(() => { lastUpdateMinutesAgo++; updateClock(); }, 60000);
+setInterval(() => { lastUpdateMinutesAgo++; update(); }, 180000);
+updateClock();
+
+/* ---------------- ADD FIELD ---------------- */
+const CROP_OPTIONS = [
+  {name:'Озимая пшеница', icon:'🌾'},
+  {name:'Кукуруза', icon:'🌽'},
+  {name:'Подсолнечник', icon:'🌻'},
+  {name:'Соя', icon:'🫘'},
+  {name:'Картофель', icon:'🥔'},
+  {name:'Ячмень', icon:'🌾'},
+  {name:'Другое', icon:'🌱'}
+];
+
+let drawing = false;
+let draftPoints = [];
+let draftLayer = null;
+const addFieldBtn = document.getElementById('addFieldBtn');
+const cardContentEl = document.getElementById('cardContent');
+
+addFieldBtn.addEventListener('click', () => {
+  if (drawing) { cancelDrawing(); return; }
+  startDrawing();
+});
+
+function startDrawing(){
+  drawing = true;
+  draftPoints = [];
+  draftLayer = L.layerGroup().addTo(map);
+  map.getContainer().style.cursor = 'crosshair';
+  document.querySelectorAll('.field-btn').forEach(b => b.classList.remove('active'));
+  addFieldBtn.textContent = 'Отменить добавление';
+  renderDrawInstructions();
+  map.on('click', onMapClickWhileDrawing);
+}
+
+function onMapClickWhileDrawing(e){
+  draftPoints.push([e.latlng.lat, e.latlng.lng]);
+  redrawDraft();
+  renderDrawInstructions();
+}
+
+function redrawDraft(){
+  draftLayer.clearLayers();
+  draftPoints.forEach(p => {
+    L.circleMarker(p, {radius:4, color:'#1b2318', weight:1, fillColor:'#c69a4b', fillOpacity:1}).addTo(draftLayer);
+  });
+  if (draftPoints.length > 1) {
+    L.polyline(draftPoints, {color:'#c69a4b', weight:2, dashArray:'4,4'}).addTo(draftLayer);
+  }
+  if (draftPoints.length > 2) {
+    L.polygon(draftPoints, {color:'#c69a4b', weight:2, fillColor:'#c69a4b', fillOpacity:0.14}).addTo(draftLayer);
+  }
+}
+
+function renderDrawInstructions(){
+  const n = draftPoints.length;
+  cardContentEl.innerHTML = `
+    <div class="draw-box">
+      <div class="draw-title">✏️ Обводим контур поля</div>
+      <p>Кликайте по карте, отмечая точки границы поля по контуру. Отмечено точек: <span class="pt-count">${n}</span> (нужно минимум 3).</p>
+      <div class="form-actions">
+        <button class="btn-secondary" id="cancelDrawBtn">Отмена</button>
+        <button class="btn-primary" id="finishDrawBtn" ${n < 3 ? 'disabled' : ''}>Завершить контур</button>
+      </div>
+    </div>
+  `;
+  document.getElementById('cancelDrawBtn').addEventListener('click', cancelDrawing);
+  const finishBtn = document.getElementById('finishDrawBtn');
+  if (finishBtn) finishBtn.addEventListener('click', finishDrawing);
+}
+
+function cancelDrawing(){
+  drawing = false;
+  map.getContainer().style.cursor = '';
+  map.off('click', onMapClickWhileDrawing);
+  if (draftLayer) { draftLayer.clearLayers(); map.removeLayer(draftLayer); draftLayer = null; }
+  addFieldBtn.textContent = '+ Добавить поле';
+  if (selectedId) {
+    selectField(selectedId);
+  } else {
+    cardContentEl.innerHTML = `<div class="empty-state">Выберите поле слева<br>или отметьте станцию на карте</div>`;
+  }
+}
+
+function finishDrawing(){
+  if (draftPoints.length < 3) return;
+  drawing = false;
+  map.getContainer().style.cursor = '';
+  map.off('click', onMapClickWhileDrawing);
+  if (draftLayer) { draftLayer.clearLayers(); map.removeLayer(draftLayer); draftLayer = null; }
+  addFieldBtn.textContent = '+ Добавить поле';
+  renderAddForm(draftPoints.slice());
+}
+
+function polygonAreaHa(latlngs){
+  const R = 6371000;
+  const latAvg = (latlngs.reduce((s,p) => s + p[0], 0) / latlngs.length) * Math.PI / 180;
+  const pts = latlngs.map(p => [
+    R * (p[1] * Math.PI / 180) * Math.cos(latAvg),
+    R * (p[0] * Math.PI / 180)
+  ]);
+  let area = 0;
+  for (let i = 0; i < pts.length; i++) {
+    const [x1, y1] = pts[i];
+    const [x2, y2] = pts[(i + 1) % pts.length];
+    area += x1 * y2 - x2 * y1;
+  }
+  return Math.abs(area) / 2 / 10000;
+}
+
+function centroidOf(latlngs){
+  const lat = latlngs.reduce((s,p) => s + p[0], 0) / latlngs.length;
+  const lng = latlngs.reduce((s,p) => s + p[1], 0) / latlngs.length;
+  return [lat, lng];
+}
+
+function renderAddForm(points){
+  const suggestedArea = polygonAreaHa(points).toFixed(1);
+  const today = new Date().toISOString().slice(0,10);
+  cardContentEl.innerHTML = `
+    <div class="field-card field-form">
+      <div class="card-head" style="border-bottom:none;margin-bottom:0;">
+        <div><h2>Новое поле</h2><div style="font-size:12px;color:#7a7260;">Контур отмечен — заполните карточку</div></div>
+      </div>
+
+      <label for="fName">Название поля</label>
+      <input type="text" id="fName" placeholder="Например, Поле №6 — Западное">
+
+      <div class="row2">
+        <div>
+          <label for="fArea">Площадь, га</label>
+          <input type="number" id="fArea" step="0.1" min="0.1" value="${suggestedArea}">
+          <div class="hint">Рассчитано по контуру, можно поправить</div>
+        </div>
+        <div>
+          <label for="fDate">Дата посадки</label>
+          <input type="date" id="fDate" value="${today}">
+        </div>
+      </div>
+
+      <div class="form-actions">
+        <button class="btn-secondary" id="formCancelBtn">Отмена</button>
+        <button class="btn-primary" id="formSaveBtn">Сохранить поле</button>
+      </div>
+    </div>
+  `;
+
+  document.getElementById('formCancelBtn').addEventListener('click', () => {
+    if (selectedId) selectField(selectedId);
+    else cardContentEl.innerHTML = `<div class="empty-state">Выберите поле слева<br>или отметьте станцию на карте</div>`;
+  });
+
+  document.getElementById('formSaveBtn').addEventListener('click', () => {
+    const nameInput = document.getElementById('fName').value.trim();
+    const area = parseFloat(document.getElementById('fArea').value) || +suggestedArea;
+    const plantedDate = document.getElementById('fDate').value || today;
+
+    const newId = 'f' + (FIELDS.length + 1) + '_' + Date.now().toString().slice(-4);
+    const newField = {
+      id: newId,
+      name: nameInput || `Поле №${FIELDS.length + 1}`,
+      status: 'offline',
+      area: area,
+      planted: plantedDate,
+      center: centroidOf(points),
+      polygon: points,
+      fertilizers: [],
+      sensors: {temp:'—', humidityAir:'—', pressure:'—', soilMoisture:'—', soilTemp:'—', light:'—', rain:'—'},
+      ai: "Ждём данные от датчиков, чтобы нейросеть могла дать рекомендации"
+    };
+    fetch("http://127.0.0.1:5000/api/add", {
+      methd: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify(newField)
+    })
+    .then(response => response.json())
+    .catch(error => {
+      console.error("Ошибка при добавлении поля на сервер:", error);
+    });
+    FIELDS.push(newField);
+    addFieldToMap(newField);
+    addFieldButton(newField);
+    selectField(newId);
+  });
+}
+
+/* select first field by default */
+loadFields();
+</script>
+</body>
+</html>

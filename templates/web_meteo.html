@@ -543,7 +543,7 @@ const polygons = {};
 // Загрузка полей с сервера
 async function loadFields() {
 
-    const response = await fetch("http://127.0.0.1:5000/api/fields");
+    const response = await fetch("/api/fields");
     FIELDS = await response.json();
 
     const defaultSensors = {temp:'—', humidityAir:'—', pressure:'—', soilMoisture:'—', soilTemp:'—', light:'—', rain:'—'};
@@ -802,7 +802,7 @@ function renderFertForm(f){
     const time = now.toLocaleTimeString('ru-RU', {hour:'2-digit', minute:'2-digit', second:'2-digit'});
     const entry = { name: label, date: new Date(date).toLocaleDateString('ru-RU', {day:'2-digit', month:'long', year:'numeric'}), time: time };
     f.fertilizers.push(entry);
-    fetch("http://127.0.0.1:5000/api/fertilizer", {
+    fetch("/api/fertilizer", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ fieldId: f.id, fertilizer: entry })
@@ -830,7 +830,7 @@ refreshBtn.addEventListener('click', () => {
   
 })
 function update(){
-  const url = 'http://127.0.0.1:5000/api/update';
+  const url = '/api/update';
   const data = { message: 'Привет, сервер!' };
 
   fetch(url, {
@@ -838,20 +838,43 @@ function update(){
   })
 .then(response => response.json())
 .then(result => {
+  console.log(result)
+  const fieldIndex = FIELDS.findIndex(x => x.id === result.id);
+      if (fieldIndex === -1) {
+        console.warn(`Поле с id ${result.id} не найдено в списке`);
+        return;
+      }
+      const field = FIELDS[fieldIndex];
+      // обновляем данные
+      field.sensors.humidityAir = result.ahum;
+      field.sensors.temp = result.atemp;
+      field.sensors.pressure = result.press;
+      field.sensors.soilMoisture = result.shum;
+      field.sensors.soilTemp = result.stemp;
+      field.sensors.light = result.light;
+      field.ai = result.ai;
+      field.status = result.status;
+  if (selectedId === field.id) {
+        renderCard(field);          // ← вот так перерисовывается карточка
+      }
+      
+      // обновляем маркер на карте (цвет статуса)
+      if (markers[field.id]) {
+        markers[field.id].setStyle({ fillColor: STATUS_COLOR[field.status] });
+      }
+      // обновляем кнопку в списке (точку статуса)
+      const btn = document.getElementById('btn-' + field.id);
+      if (btn) {
+        const dot = btn.querySelector('.dot');
+        if (dot) {
+          dot.className = 'dot ' + field.status;
+        }
+      }
 
-  FIELDS[FIELDS.findIndex(x => x.id === result.id)].sensors.humidityAir = result.ahum;
-  FIELDS[FIELDS.findIndex(x => x.id === result.id)].sensors.temp = result.atemp;
-  FIELDS[FIELDS.findIndex(x => x.id === result.id)].sensors.pressure = result.press;
-  FIELDS[FIELDS.findIndex(x => x.id === result.id)].sensors.soilMoisture = result.shum;
-  FIELDS[FIELDS.findIndex(x => x.id === result.id)].sensors.soilTemp = result.stemp;
-  FIELDS[FIELDS.findIndex(x => x.id === result.id)].sensors.light = result.light;
-  FIELDS[FIELDS.findIndex(x => x.id === result.id)].ai = result.ai;
-  FIELDS[FIELDS.findIndex(x => x.id === result.id)].status = result.status;
   lastUpdateMinutesAgo = 0;
   updateClock();
 })
 .catch(error => console.error('Ошибка:', error));
-location.reload();
 }
 function updateClock(){
   lastUpdateLabel.textContent = lastUpdateMinutesAgo === 0
@@ -1030,7 +1053,7 @@ function renderAddForm(points){
       sensors: {temp:'—', humidityAir:'—', pressure:'—', soilMoisture:'—', soilTemp:'—', light:'—', rain:'—'},
       ai: "Ждём данные от датчиков, чтобы нейросеть могла дать рекомендации"
     };
-    fetch("http://127.0.0.1:5000/api/add", {
+    fetch("/api/add", {
       method: "POST",
       headers: {
         "Content-Type": "application/json"

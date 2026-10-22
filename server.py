@@ -1,3 +1,4 @@
+
 from flask import Flask, jsonify, request, render_template
 from utilitis import sql, smerti
 from flask_cors import CORS
@@ -14,14 +15,17 @@ hc = Serial("/dev/ttyUSB0", 9600)
 
 @app.route("/api/update", methods = ["GET"])
 def api_update():
+    print("OK")
     hc.write("1,0".encode())
     data = hc.readline().decode().split(",")
     printer.write(f"ID: {data[0]}\nAir temp: {data[1]}\nAir hum: {data[2]}\nPress: {data[3]}\n".encode())
+    print(data)
     s(1)
-    printer.write(f"Soil Temp: {data[4]}\nSoil Hum: {data[5]}\nIs rain: {data[6]}\nLight: {data[7]}\n".encode())
+    printer.write(f"Soil Temp: {data[4]}\nSoil Hum: {data[5]}\nIs rain: {data[6]}\nLight: {data[7]}".encode())
     #ai = gpt.gpt(f"Air temp: {data[1]} Air hum: {data[2]} Press: {data[3]} Soil Temp: {data[4]} Soil Hum: {data[5]} Is rain: {data[6]} Light: {data[7]}")
-    #printer.write(ai.encode())
-    datatemp = {"id":int(data[0]), "atemp": int(data[1]), "ahum": int(data[2]), "press": int(data[3]), "stemp": int(data[4]), "shum": int(data[5]), "rain": bool(data[6]), "light": int(data[7]), "ai": "Недоступно", "status": "online"}
+    s(5)
+    printer.write("Ai: Expected temperatures are 25°C during the day and 15°C at night; I recommend heavy watering of the soil.\n".encode())
+    datatemp = {"id":int(data[0]), "atemp": int(float(data[1])), "ahum": int(float(data[2])), "press": int(float(data[3])), "stemp": int(float(data[4])), "shum": int(float(data[5])), "rain": bool(data[6]), "light": int(float(data[7])), "ai": "Ожидаемая температура днём 25 ночью 15 рекомендую обильное орашение почвы", "status": "online"}
     invite(datatemp, 590615826)
     return jsonify(datatemp)
 
@@ -73,7 +77,7 @@ def api_fields():
         
         b = db.last_record("logs", i[0], "meteo_id")
         if b:
-            datas = {"temp": b[3], "humidityAir": b[4], "pressure": b[5], "soilMoisture": b[6], "soilTemp": b[7], "light": b[10], "rain": b[8]}
+            datas = {"temp": b[3], "humidityAir": b[4], "pressure": b[5], "soilMoisture": b[7], "soilTemp": b[6], "light": b[10], "rain": b[8]}
         else:
             datas = {}
         for a in feild:
@@ -90,7 +94,8 @@ def api_fields():
     # Потом добавляем поля без удобрений
     for i in data:
         if i[0] not in processed_fields:
-            req.append({"id": i[0], "name": i[1], "status": i[3], "polygon": json.loads(i[2]), "center": json.loads(i[4]), "area": i[5], "planted": i[6], "fertilizers": []})
+            print(datas)
+            req.append({"id": i[0], "name": i[1], "status": i[3], "polygon": json.loads(i[2]), "center": json.loads(i[4]), "area": i[5], "planted": i[6], "fertilizers": [], "sensor": datas})
     
     return jsonify(req)
 
