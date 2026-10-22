@@ -9,23 +9,23 @@ from serial import Serial
 from datetime import datetime
 app = Flask(__name__)
 CORS(app)
-db = sql("192.168.0.13", password="123", dbname="meteo")
-printer = Serial("/dev/ttyS0", 9600)
-hc = Serial("/dev/ttyUSB0", 9600)
+db = sql("localhost", password="123", dbname="meteo")
+#printer = Serial("/dev/ttyS0", 9600)
+hc = Serial("COM3", 9600)
 
 @app.route("/api/update", methods = ["GET"])
 def api_update():
     print("OK")
     hc.write("1,0".encode())
     data = hc.readline().decode().split(",")
-    printer.write(f"ID: {data[0]}\nAir temp: {data[1]}\nAir hum: {data[2]}\nPress: {data[3]}\n".encode())
+    #printer.write(f"ID: {data[0]}\nAir temp: {data[1]}\nAir hum: {data[2]}\nPress: {data[3]}\n".encode())
     print(data)
     s(1)
-    printer.write(f"Soil Temp: {data[4]}\nSoil Hum: {data[5]}\nIs rain: {data[6]}\nLight: {data[7]}".encode())
+    #printer.write(f"Soil Temp: {data[4]}\nSoil Hum: {data[5]}\nIs rain: {data[6]}\nLight: {data[7]}".encode())
     #ai = gpt.gpt(f"Air temp: {data[1]} Air hum: {data[2]} Press: {data[3]} Soil Temp: {data[4]} Soil Hum: {data[5]} Is rain: {data[6]} Light: {data[7]}")
     s(5)
-    printer.write("Ai: Expected temperatures are 25°C during the day and 15°C at night; I recommend heavy watering of the soil.\n".encode())
-    datatemp = {"id":int(data[0]), "atemp": int(float(data[1])), "ahum": int(float(data[2])), "press": int(float(data[3])), "stemp": int(float(data[4])), "shum": int(float(data[5])), "rain": bool(data[6]), "light": int(float(data[7])), "ai": "Ожидаемая температура днём 25 ночью 15 рекомендую обильное орашение почвы", "status": "online"}
+    #printer.write("Ai: Expected temperatures are 25°C during the day and 15°C at night; I recommend heavy watering of the soil.\n".encode())
+    datatemp = {"id":int(data[0]), "atemp": int(float(data[1])), "ahum": int(float(data[2])), "press": int(float(data[3])), "stemp": int(float(data[4])), "shum": int(float(data[5])), "rain": bool(data[6]), "light": int(float(data[7]))*-1, "ai": "Ожидаемая температура днём 25 ночью 15 рекомендую обильное орашение почвы", "status": "online"}
     invite(datatemp, 590615826)
     return jsonify(datatemp)
 
@@ -107,4 +107,4 @@ def api_fields_delete():
     delete_farm(data["fieldId"])
     return jsonify({"status": "ok"})
 
-app.run("0.0.0.0", 5000, True) 
+app.run("0.0.0.0", 5000, False) 
