@@ -49,7 +49,7 @@ def messeges(id,data):
         vk.messages.send(user_id=id, message=alaram, random_id=random.randint(1, 2**20))
 
     if data["shum"] > maxShum:
-        alaram = (f"⚠️ **ВНИМАНИЕ!** Владнность почвы превысила порог!\n" f"💦 Сейчас: **{data['shum']}°%** (порог {maxShum}°%)")
+        alaram = (f"⚠️ **ВНИМАНИЕ!** Влажность почвы превысила порог!\n" f"💦 Сейчас: **{data['shum']}°%** (порог {maxShum}°%)")
         vk.messages.send(user_id=id, message=alaram, random_id=random.randint(1, 2**20))
     elif data["shum"] < minShum:
         alaram = (f"⚠️ **ВНИМАНИЕ!** Влажность почвы нниже порога!\n" f"🏜️ Сейчас: **{data['shum']}°%** (порог {minShum}°%)")
