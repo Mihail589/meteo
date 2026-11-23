@@ -54,5 +54,5 @@ def messeges(id,data):
     elif data["shum"] < minShum:
         alaram = (f"⚠️ **ВНИМАНИЕ!** Влажность почвы нниже порога!\n" f"🏜️ Сейчас: **{data['shum']}°%** (порог {minShum}°%)")
         vk.messages.send(user_id=id, message=alaram, random_id=random.randint(1, 2**20))
-                  
-messeges(591552435,{"id":2, "atemp": -55, "ahum": 33, "press": 44, "stemp": -55, "shum": -66, "rain":"True", "light": 88, "ai": "test"})
+if __name__ == "__main__":  
+    messeges(591552435,{"id":2, "atemp": -55, "ahum": 33, "press": 44, "stemp": -55, "shum": -66, "rain":"True", "light": 88, "ai": "test"})
