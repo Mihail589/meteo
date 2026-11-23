@@ -6,7 +6,7 @@ import json
 from time import sleep as s
 from sql import sql 
 from serial import Serial
-from utilitis.gpt import *
+#from utilitis.gpt import *
 from datetime import datetime
 
 app = Flask(__name__)
@@ -27,11 +27,11 @@ def api_update():
     print(data)
     s(1)
     #printer.write(f"Soil Temp: {data[4]}\nSoil Hum: {data[5]}\nIs rain: {data[6]}\nLight: {data[7]}".encode())
-    ai = gpt(f"Air temp: {data[1]} Air hum: {data[2]} Press: {data[3]} Soil Temp: {data[4]} Soil Hum: {data[5]} Is rain: {data[6]} Light: {data[7]}")
-    s(5)
+    #ai = gpt(f"Air temp: {data[1]} Air hum: {data[2]} Press: {data[3]} Soil Temp: {data[4]} Soil Hum: {data[5]} Is rain: {data[6]} Light: {data[7]}")
+    ai = "полив в ближайшие трое суток не рекомендуется" 
     #printer.write("Ai: Expected temperatures are 25°C during the day and 15°C at night; I recommend heavy watering of the soil.\n".encode())
-    datatemp = {"id":int(data[0]), "atemp": int(float(data[1])), "ahum": int(float(data[2])), "press": int(float(data[3])), "stemp": int(float(data[4])), "shum": int(float(data[5])), "rain": bool(data[6]), "light": int(float(data[7]))*-1, "ai": ai, "status": "online"}
-    invite(datatemp, 590615826)
+    datatemp = {"id":int(data[0]), "atemp": int(float(data[1])), "ahum": int(float(data[2])), "press": int(float(data[3])), "stemp": int(float(data[4])), "shum": int(float(data[5])), "rain": bool(int(data[6])), "light": int(float(data[7]))*-1, "ai": ai, "status": "online"}
+    invite(datatemp, 591552435)
     return jsonify(datatemp)
 
 @app.route("/api/add", methods = ["POST"])
